@@ -30,29 +30,23 @@ def setup_logging(log_dir: Optional[Path] = None):
         log_dir (Optional[Path]): 日誌檔案儲存的目錄。如果提供，
                                   則會建立名為 'run.log' 的日誌檔案。
     """
-    log_format = logging.Formatter(
-        "%(asctime)s - %(levelname)s - %(name)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
+    # 設置基本配置，這會影響 root logger
+    log_format = "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+    date_format = "%Y-%m-%d %H:%M:%S"
     
-    logger = logging.getLogger("esg_promise")
-    logger.setLevel(logging.INFO)
+    # 清除所有現有的 handlers
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
+
+    handlers = [logging.StreamHandler(sys.stdout)]
     
-    # 清除已經存在的 handlers，避免重複記錄
-    if logger.hasHandlers():
-        logger.handlers.clear()
-
-    # 控制台輸出
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(log_format)
-    logger.addHandler(console_handler)
-
-    # 檔案輸出
     if log_dir:
         log_dir.mkdir(parents=True, exist_ok=True)
-        file_handler = logging.FileHandler(log_dir / "run.log")
-        file_handler.setFormatter(log_format)
-        logger.addHandler(file_handler)
+        handlers.append(logging.FileHandler(log_dir / "run.log"))
 
-    # 避免將日誌傳播到 root logger
-    logger.propagate = False
+    logging.basicConfig(
+        level=logging.INFO,
+        format=log_format,
+        datefmt=date_format,
+        handlers=handlers
+    )

@@ -1,15 +1,15 @@
 from typing import Dict, List, Any
 
-# 統一定義四個任務的標籤
-# 這有助於確保標籤名稱的一致性
+# 依照競賽官方規格定義 (Step 2 of the official example)
+# 注意：這些標籤順序會影響 model output 的 index
 TASK_TO_LABELS: Dict[str, List[str]] = {
-    "promise": ["No", "Yes"],
-    "evidence": ["No", "Yes"],
+    "promise": ["Yes", "No"],
+    "timeline": ["already", "within_2_years", "between_2_and_5_years", "longer_than_5_years"],
+    "evidence": ["Yes", "No"],
     "clarity": ["Clear", "Not Clear", "Misleading"],
-    "timeline": ["already", "within_2_years", "between_2_and_5_years", "more_than_5_years"],
 }
 
-# N/A 標籤
+# N/A 標籤 (用於邏輯過濾)
 NA_LABEL = "N/A"
 
 def get_label_maps() -> Dict[str, Any]:

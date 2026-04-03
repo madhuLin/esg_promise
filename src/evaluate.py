@@ -21,15 +21,15 @@ logger = logging.getLogger(__name__)
 @dataclass
 class EvaluationArguments:
     """評估腳本的參數。"""
-    task: Task = tyro.conf.arg(help="要評估的任務類型。")
-    model_path: Path = tyro.conf.arg(help="已訓練模型的路徑。")
-    data_path: Path = tyro.conf.arg(help="要評估的資料集 JSON 檔案路徑。")
-    output_dir: Path = tyro.conf.arg(help="儲存評估結果的目錄。")
+    task: Task = tyro.conf.field(help="要評估的任務類型。")
+    model_path: Path = tyro.conf.field(help="已訓練模型的路徑。")
+    data_path: Path = tyro.conf.field(help="要評估的資料集 JSON 檔案路徑。")
+    output_dir: Path = tyro.conf.field(help="儲存評估結果的目錄。")
     
-    batch_size: int = 32
-    max_length: int = 512
-    num_workers: int = 4
-    seed: int = 42
+    batch_size: int = tyro.conf.field(default=32, help="每個批次的樣本數。")
+    max_length: int = tyro.conf.field(default=512, help="Tokenizer 的最大長度。")
+    num_workers: int = tyro.conf.field(default=4, help="資料載入器的工作執行緒數量。")
+    seed: int = tyro.conf.field(default=42, help="隨機種子。")
 
 def main(args: EvaluationArguments):
     """主評估函式。"""

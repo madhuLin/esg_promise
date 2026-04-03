@@ -5,12 +5,12 @@ echo "===== Training Promise Status Model ====="
 
 python -m src.train \
     --task promise \
-    --model_name_or_path "hfl/chinese-roberta-wwm-ext" \
-    --train_path "data_examples/sample_data.json" \
-    --valid_path "data_examples/sample_data.json" \
-    --output_dir "checkpoints/promise_model" \
-    --epochs 3 \
-    --batch_size 4 \
+    --model-name-or-path "models/base/chinese-roberta-wwm-ext" \
+    --train-path "data/train.json" \
+    --valid-path "data/val.json" \
+    --output-dir "checkpoints/promise_model" \
+    --epochs 10 \
+    --batch-size 8 \
     --learning_rate 2e-5 \
-    --max_length 256 \
-    --early_stopping_patience 2
+    --max-length 256 \
+    --early-stopping-patience 3

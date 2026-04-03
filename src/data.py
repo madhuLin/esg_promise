@@ -88,28 +88,21 @@ class ESGDataset(Dataset):
         task: Task,
         max_length: int = 512,
         for_training: bool = True,
+        filter: bool = True, # 新增參數控制是否過濾
     ):
-        """
-        Args:
-            data (List[Dict[str, Any]]): 資料列表。
-            tokenizer (AutoTokenizer): HuggingFace Tokenizer。
-            task (Task): 任務類型。
-            max_length (int): Tokenizer 的最大長度。
-            for_training (bool): 是否為訓練模式。若是，則會過濾資料並轉換標籤。
-        """
         self.tokenizer = tokenizer
         self.task = task
         self.max_length = max_length
         self.for_training = for_training
         
-        # 根據任務的訓練規則過濾資料
-        if self.for_training:
+        # 根據參數決定是否過濾
+        if filter:
             self.data = filter_data_for_task(data, task)
-            if not self.data:
-                logger.warning(f"任務 '{task}' 在過濾後沒有任何訓練資料。")
         else:
-            # 推論或評估時使用所有資料
             self.data = data
+            
+        if not self.data:
+            logger.warning(f"任務 '{task}' 在處理後沒有任何資料。")
             
         self.label_map = LABEL_MAPS["label_to_id"][task]
 
@@ -126,13 +119,13 @@ class ESGDataset(Dataset):
 
         for sample in self.data:
             self.texts.append(format_input_text(sample, task))
-            if self.for_training:
-                label = sample.get(label_key)
-                if label not in self.label_map:
-                    # 如果標籤不在預期中，可以跳過或給予警告
-                    logger.warning(f"樣本 {sample.get('id')} 的標籤 '{label}' 不在 {task} 任務的標籤映射中。跳過此樣本。")
-                    continue
+            # 無論是否為訓練，只要有標籤就載入，方便評估
+            label = sample.get(label_key)
+            if label in self.label_map:
                 self.labels.append(self.label_map[label])
+            else:
+                # 推論時若無標籤則填入 -1
+                self.labels.append(-1)
 
     def __len__(self) -> int:
         return len(self.data)
@@ -155,8 +148,10 @@ class ESGDataset(Dataset):
         if "token_type_ids" in encoding:
             item["token_type_ids"] = encoding["token_type_ids"].flatten()
 
-        if self.for_training and self.labels:
-            item["labels"] = torch.tensor(self.labels[idx], dtype=torch.long)
+        # 只要 labels 不是 -1 就回傳
+        label = self.labels[idx]
+        if label != -1:
+            item["labels"] = torch.tensor(label, dtype=torch.long)
         
         return item
 
@@ -168,35 +163,46 @@ def create_dataloader(
     max_length: int,
     shuffle: bool = False,
     for_training: bool = True,
-    num_workers: int = 4
+    num_workers: int = 4,
+    balance: bool = False,
+    filter: bool = True # 新增參數
 ) -> Optional[DataLoader]:
     """
     建立一個 DataLoader。
-
-    Args:
-        path (Path): 資料檔案路徑。
-        tokenizer (AutoTokenizer): Tokenizer。
-        task (Task): 任務類型。
-        batch_size (int): 批次大小。
-        max_length (int): 最大長度。
-        shuffle (bool): 是否打亂資料。
-        for_training (bool): 是否為訓練模式。
-        num_workers (int): 資料載入器的工作執行緒數量。
-
-    Returns:
-        Optional[DataLoader]: 如果資料成功載入，返回 DataLoader，否則返回 None。
     """
     raw_data = load_data_from_json(path)
-    dataset = ESGDataset(raw_data, tokenizer, task, max_length, for_training)
+    dataset = ESGDataset(raw_data, tokenizer, task, max_length, for_training, filter=filter)
 
     if not dataset.data:
         logger.warning(f"無法為 {path} 建立 DataLoader，因為沒有可用資料。")
         return None
 
+    sampler = None
+    if for_training and balance:
+        # 計算樣本權重以進行平衡採樣
+        labels = torch.tensor(dataset.labels)
+        if len(labels) > 0:
+            num_labels = len(dataset.label_map)
+            class_counts = torch.bincount(labels, minlength=num_labels)
+            
+            # 建立類別權重，處理數量為 0 的類別
+            class_weights = torch.zeros(num_labels)
+            nonzero_mask = class_counts > 0
+            class_weights[nonzero_mask] = 1. / class_counts[nonzero_mask].float()
+            
+            sample_weights = class_weights[labels]
+            sampler = torch.utils.data.WeightedRandomSampler(
+                weights=sample_weights,
+                num_samples=len(sample_weights),
+                replacement=True
+            )
+            shuffle = False  # 使用 sampler 時不能開啟 shuffle
+
     return DataLoader(
         dataset,
         batch_size=batch_size,
         shuffle=shuffle,
+        sampler=sampler,
         num_workers=num_workers,
         pin_memory=True,
     )

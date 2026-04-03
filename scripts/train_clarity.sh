@@ -1,17 +1,19 @@
 #!/bin/bash
 
 # 訓練 evidence_quality (clarity) 模型的腳本
+# 針對極端不平衡進行穩定性優化
 echo "===== Training Clarity (Evidence Quality) Model ====="
 
 python -m src.train \
     --task clarity \
-    --model_name_or_path "hfl/chinese-roberta-wwm-ext" \
-    --train_path "data_examples/sample_data.json" \
-    --valid_path "data_examples/sample_data.json" \
-    --output_dir "checkpoints/clarity_model" \
-    --epochs 3 \
-    --batch_size 2 \
+    --model-name-or-path "models/base/chinese-roberta-wwm-ext" \
+    --train-path "data/train.json" \
+    --valid-path "data/val.json" \
+    --output-dir "checkpoints/clarity_model" \
+    --epochs 10 \
+    --batch-size 8 \
     --learning_rate 2e-5 \
-    --max_length 512 \
-    --early_stopping_patience 2 \
-    --gradient_accumulation_steps 2
+    --max-length 256 \
+    --early-stopping-patience 5 \
+    --no-balance \
+    --no-use-class-weights

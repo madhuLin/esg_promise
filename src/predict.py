@@ -22,14 +22,14 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PredictionArguments:
     """預測腳本的參數。"""
-    task: Task = tyro.conf.arg(help="要預測的任務類型。")
-    model_path: Path = tyro.conf.arg(help="已訓練模型的路徑。")
-    input_path: Path = tyro.conf.arg(help="輸入的 JSON 檔案路徑。")
-    output_path: Path = tyro.conf.arg(help="儲存預測結果的 JSON 檔案路徑。")
+    task: Task = tyro.conf.field(help="要預測的任務類型。")
+    model_path: Path = tyro.conf.field(help="已訓練模型的路徑。")
+    input_path: Path = tyro.conf.field(help="輸入的 JSON 檔案路徑。")
+    output_path: Path = tyro.conf.field(help="儲存預測結果的 JSON 檔案路徑。")
 
-    batch_size: int = 32
-    max_length: int = 512
-    num_workers: int = 4
+    batch_size: int = tyro.conf.field(default=32, help="每個批次的樣本數。")
+    max_length: int = tyro.conf.field(default=512, help="Tokenizer 的最大長度。")
+    num_workers: int = tyro.conf.field(default=4, help="資料載入器的工作執行緒數量。")
 
 def main(args: PredictionArguments):
     """
@@ -44,6 +44,11 @@ def main(args: PredictionArguments):
     logger.info(f"輸出路徑: {args.output_path}")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    if args.task not in LABEL_MAPS["id_to_label"]:
+        logger.error(f"找不到任務 '{args.task}' 的標籤映射。可用任務: {list(LABEL_MAPS['id_to_label'].keys())}")
+        return
+        
     id_to_label = LABEL_MAPS["id_to_label"][args.task]
     num_labels = len(id_to_label)
 

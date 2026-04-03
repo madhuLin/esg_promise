@@ -1,6 +1,8 @@
 import logging
 from pathlib import Path
 
+import matplotlib
+matplotlib.use("Agg")  # 使用非交互式後端，避免 tkinter 報錯
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
@@ -34,14 +36,16 @@ def compute_metrics(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # 計算 Macro-F1
-    macro_f1 = f1_score(y_true, y_pred, average="macro")
+    macro_f1 = f1_score(y_true, y_pred, average="macro", zero_division=0)
 
     # 產生分類報告
+    # 明確指定 labels=np.arange(len(labels)) 以處理某些類別在驗證集中缺失的情況
+    # 使用 zero_division=0 消除 UndefinedMetricWarning
     report = classification_report(
-        y_true, y_pred, target_names=labels, digits=4, output_dict=False
+        y_true, y_pred, labels=np.arange(len(labels)), target_names=labels, digits=4, output_dict=False, zero_division=0
     )
     report_dict = classification_report(
-        y_true, y_pred, target_names=labels, digits=4, output_dict=True
+        y_true, y_pred, labels=np.arange(len(labels)), target_names=labels, digits=4, output_dict=True, zero_division=0
     )
     
     logger.info(f"分類報告:\n{report}")
@@ -68,10 +72,8 @@ def compute_metrics(
     except Exception as e:
         logger.error(f"繪製混淆矩陣時發生錯誤: {e}")
 
-    results = {"macro_f1": macro_f1}
-    # 添加每個類別的 f1-score
-    for label, metrics in report_dict.items():
-        if isinstance(metrics, dict) and "f1-score" in metrics:
-            results[f"{label}_f1"] = metrics["f1-score"]
-
+    results = {
+        "macro_f1": macro_f1,
+        "report_dict": report_dict  # 回傳完整的字典格式報告
+    }
     return results
